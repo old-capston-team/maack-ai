@@ -1,0 +1,7 @@
+opencv-python
+midiutil
+uvicorn[standard]
+fastapi
+pymupdf
+pillow
+requests
