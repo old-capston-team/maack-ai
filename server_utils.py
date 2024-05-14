@@ -37,11 +37,16 @@ def file_to_bytes(filename):
         file_bytes = file.read()
     return file_bytes
 
-def download_file_from_server(url, save_path):
+def bytes_to_wav_file(file_bytes, save_dir):
+    with open(os.path.join(save_dir, "part.wav"), 'wb') as file:
+        file.write(file_bytes)
+
+def download_midi_from_server(sheet_name, page_request, save_dir):
     # 서버에서 파일을 받아옴
+    url = f"http://0.0.0.0:30080/{sheet_name}_{page_request}"
     response = requests.get(url)
     # 응답을 파일로 저장
-    with open(save_path, 'wb') as file:
+    with open(os.path.join(save_dir, f"{sheet_name}_{page_request}.mid"), 'wb') as file:
         file.write(response.content)
 
 class PDFJSONRequest(BaseModel):
@@ -49,4 +54,5 @@ class PDFJSONRequest(BaseModel):
     
 class TrackingRequest(BaseModel):
     page: int
-    mp3: bytes
+    sheet_name: str
+    audio: bytes

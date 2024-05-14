@@ -86,7 +86,7 @@ def open_file(path):
     subprocess.run([cmd, path])
 
 def imgs2midi(images, result_dir):
-    binfiles = []
+    binfile_paths = []
     for img_idx, img in enumerate(images):
         img = img.resize((2479, 3508))
         img = np.array(img)
@@ -95,125 +95,111 @@ def imgs2midi(images, result_dir):
         ret,img_gray = cv2.threshold(img_gray,127,255,cv2.THRESH_BINARY)
         img_width, img_height = img_gray.shape[::-1]
 
-        print("Matching staff image...")
         staff_recs = locate_images(img_gray, staff_imgs, staff_lower, staff_upper, staff_thresh)
 
-        print("Filtering weak staff matches...")
         staff_recs = [j for i in staff_recs for j in i]
         heights = [r.y for r in staff_recs] + [0]
         histo = [heights.count(i) for i in range(0, max(heights) + 1)]
         avg = np.mean(list(set(histo)))
         staff_recs = [r for r in staff_recs if histo[r.y] > avg]
 
-        print("Merging staff image results...")
         staff_recs = merge_recs(staff_recs, 0.01)
-        staff_recs_img = img.copy()
-        for r in staff_recs:
-            r.draw(staff_recs_img, (0, 0, 255), 2)
-        cv2.imwrite('staff_recs_img.png', staff_recs_img)
+        # staff_recs_img = img.copy()
+        # for r in staff_recs:
+            # r.draw(staff_recs_img, (0, 0, 255), 2)
+        # cv2.imwrite(f'{result_dir}/{img_idx}/staff_recs_img.png', staff_recs_img)
 
-        print("Discovering staff locations...")
         staff_boxes = merge_recs([Rectangle(0, r.y, img_width, r.h) for r in staff_recs], 0.01)
-        staff_boxes_img = img.copy()
-        for r in staff_boxes:
-            r.draw(staff_boxes_img, (0, 0, 255), 2)
-        cv2.imwrite('staff_boxes_img.png', staff_boxes_img)
+        # staff_boxes_img = img.copy()
+        # for r in staff_boxes:
+            # r.draw(staff_boxes_img, (0, 0, 255), 2)
+        # cv2.imwrite(f'{result_dir}/{img_idx}/staff_boxes_img.png', staff_boxes_img)
         
-        print("Matching sharp image...")
         sharp_recs = locate_images(img_gray, sharp_imgs, sharp_lower, sharp_upper, sharp_thresh)
 
-        print("Merging sharp image results...")
         sharp_recs = merge_recs([j for i in sharp_recs for j in i], 0.5)
-        sharp_recs_img = img.copy()
-        for r in sharp_recs:
-            r.draw(sharp_recs_img, (0, 0, 255), 2)
-        cv2.imwrite('sharp_recs_img.png', sharp_recs_img)
+        # sharp_recs_img = img.copy()
+        # for r in sharp_recs:
+            # r.draw(sharp_recs_img, (0, 0, 255), 2)
+        # cv2.imwrite(f'{result_dir}/{img_idx}/sharp_recs_img.png', sharp_recs_img)
 
-        print("Matching flat image...")
         flat_recs = locate_images(img_gray, flat_imgs, flat_lower, flat_upper, flat_thresh)
 
-        print("Merging flat image results...")
         flat_recs = merge_recs([j for i in flat_recs for j in i], 0.5)
-        flat_recs_img = img.copy()
-        for r in flat_recs:
-            r.draw(flat_recs_img, (0, 0, 255), 2)
-        cv2.imwrite('flat_recs_img.png', flat_recs_img)
+        # flat_recs_img = img.copy()
+        # for r in flat_recs:
+            # r.draw(flat_recs_img, (0, 0, 255), 2)
+        # cv2.imwrite(f'{result_dir}/{img_idx}/flat_recs_img.png', flat_recs_img)
 
-        print("Matching quarter image...")
         quarter_recs = locate_images(img_gray, quarter_imgs, quarter_lower, quarter_upper, quarter_thresh)
 
-        print("Merging quarter image results...")
         quarter_recs = merge_recs([j for i in quarter_recs for j in i], 0.5)
-        quarter_recs_img = img.copy()
-        for r in quarter_recs:
-            r.draw(quarter_recs_img, (0, 0, 255), 2)
-        cv2.imwrite('quarter_recs_img.png', quarter_recs_img)
+        # quarter_recs_img = img.copy()
+        # for r in quarter_recs:
+            # r.draw(quarter_recs_img, (0, 0, 255), 2)
+        # cv2.imwrite(f'{result_dir}/{img_idx}/quarter_recs_img.png', quarter_recs_img)
 
-        print("Matching half image...")
         half_recs = locate_images(img_gray, half_imgs, half_lower, half_upper, half_thresh)
 
-        print("Merging half image results...")
         half_recs = merge_recs([j for i in half_recs for j in i], 0.5)
-        half_recs_img = img.copy()
-        for r in half_recs:
-            r.draw(half_recs_img, (0, 0, 255), 2)
-        cv2.imwrite('half_recs_img.png', half_recs_img)
+        # half_recs_img = img.copy()
+        # for r in half_recs:
+            # r.draw(half_recs_img, (0, 0, 255), 2)
+        # cv2.imwrite(f'{result_dir}/{img_idx}/half_recs_img.png', half_recs_img)
 
-        print("Matching whole image...")
         whole_recs = locate_images(img_gray, whole_imgs, whole_lower, whole_upper, whole_thresh)
 
-        print("Merging whole image results...")
         whole_recs = merge_recs([j for i in whole_recs for j in i], 0.5)
-        whole_recs_img = img.copy()
-        for r in whole_recs:
-            r.draw(whole_recs_img, (0, 0, 255), 2)
-        cv2.imwrite('whole_recs_img.png', whole_recs_img)
+        # whole_recs_img = img.copy()
+        # for r in whole_recs:
+            # r.draw(whole_recs_img, (0, 0, 255), 2)
+        # cv2.imwrite(f'{result_dir}/{img_idx}/whole_recs_img.png', whole_recs_img)
 
         note_groups = []
         for box in staff_boxes:
             staff_sharps = [Note(r, "sharp", box) 
-                for r in sharp_recs if abs(r.middle[1] - box.middle[1]) < box.h*5.0/8.0]
+                for r in sharp_recs if abs(r.middle[1] - box.middle[1]) < box.h*5.0/7.0]
             staff_flats = [Note(r, "flat", box) 
-                for r in flat_recs if abs(r.middle[1] - box.middle[1]) < box.h*5.0/8.0]
+                for r in flat_recs if abs(r.middle[1] - box.middle[1]) < box.h*5.0/7.0]
             quarter_notes = [Note(r, "4,8", box, staff_sharps, staff_flats) 
-                for r in quarter_recs if abs(r.middle[1] - box.middle[1]) < box.h*5.0/8.0]
+                for r in quarter_recs if abs(r.middle[1] - box.middle[1]) < box.h*5.0/7.0]
             half_notes = [Note(r, "2", box, staff_sharps, staff_flats) 
-                for r in half_recs if abs(r.middle[1] - box.middle[1]) < box.h*5.0/8.0]
+                for r in half_recs if abs(r.middle[1] - box.middle[1]) < box.h*5.0/7.0]
             whole_notes = [Note(r, "1", box, staff_sharps, staff_flats) 
-                for r in whole_recs if abs(r.middle[1] - box.middle[1]) < box.h*5.0/8.0]
+                for r in whole_recs if abs(r.middle[1] - box.middle[1]) < box.h*5.0/7.0]
             staff_notes = quarter_notes + half_notes + whole_notes
             staff_notes.sort(key=lambda n: n.rec.x)
             staffs = [r for r in staff_recs if r.overlap(box) > 0]
             staffs.sort(key=lambda r: r.x)
-            note_color = (randint(0, 255), randint(0, 255), randint(0, 255))
+            # note_color = (randint(0, 255), randint(0, 255), randint(0, 255))
             note_group = []
             i = 0; j = 0
             while(i < len(staff_notes)):
-                if (staff_notes[i].rec.x > staffs[j].x and j < len(staffs)):
+                if (j < len(staffs) and staff_notes[i].rec.x > staffs[j].x):
                     r = staffs[j]
                     j += 1
                     if len(note_group) > 0:
                         note_groups.append(note_group)
                         note_group = []
-                    note_color = (randint(0, 255), randint(0, 255), randint(0, 255))
+                    # note_color = (randint(0, 255), randint(0, 255), randint(0, 255))
                 else:
                     note_group.append(staff_notes[i])
-                    staff_notes[i].rec.draw(img, note_color, 2)
+                    # staff_notes[i].rec.draw(img, note_color, 2)
                     i += 1
             note_groups.append(note_group)
 
-        for r in staff_boxes:
-            r.draw(img, (0, 0, 255), 2)
-        for r in sharp_recs:
-            r.draw(img, (0, 0, 255), 2)
-        flat_recs_img = img.copy()
-        for r in flat_recs:
-            r.draw(img, (0, 0, 255), 2)
-            
-        cv2.imwrite('res.png', img)
+        # for r in staff_boxes:
+            # r.draw(img, (0, 0, 255), 2)
+        # for r in sharp_recs:
+            # r.draw(img, (0, 0, 255), 2)
+        # flat_recs_img = img.copy()
+        # for r in flat_recs:
+            # r.draw(img, (0, 0, 255), 2)
+
+        # cv2.imwrite('res.png', img)
     
-        for note_group in note_groups:
-            print([ note.note + " " + note.sym for note in note_group])
+        # for note_group in note_groups:
+        #     print([ note.note + " " + note.sym for note in note_group])
 
         midi = MIDIFile(1)
         
@@ -223,8 +209,8 @@ def imgs2midi(images, result_dir):
         volume = 100
         
         midi.addTrackName(track, time, "Track")
-        midi.addTempo(track, time, 140)
-        
+        midi.addTempo(track, time, 76)
+
         for note_group in note_groups:
             duration = None
             for note in note_group:
@@ -239,14 +225,13 @@ def imgs2midi(images, result_dir):
                 midi.addNote(track,channel,pitch,time,duration,volume)
                 time += duration
 
-        midi.addNote(track,channel,pitch,time,4,0)
         # And write it to disk.
         binfile = open(f"{result_dir}/{img_idx}.mid", 'wb')
         midi.writeFile(binfile)
         binfile.close()
-        binfiles.append(binfile)
+        binfile_paths.append(f"{result_dir}/{img_idx}.mid")
     
-    return [file_to_bytes(binfile) for binfile in binfiles]
+    return [file_to_bytes(path) for path in binfile_paths]
 
 def file_to_bytes(filename):
     # 파일을 바이너리 모드로 열고 내용을 읽음
@@ -265,7 +250,7 @@ if __name__ == "__main__":
         for page_number in range(len(document)):
             page = document.load_page(page_number)  # 페이지 객체 로드
             pix = page.get_pixmap(matrix=fitz.Matrix(dpi / 72, dpi / 72)) 
-            image_path = f"../tmp/page_{page_number + 1}.{image_format}"
+            image_path = f"tmp/page_{page_number + 1}.{image_format}"
             pix.save(image_path)  # 이미지 파일로 저장
             img = Image.open(image_path)
             images.append(img)
@@ -274,11 +259,12 @@ if __name__ == "__main__":
 
         return images
     
-    pdf_path = "../eight.pdf"
+    pdf_path = "../andante.pdf" # ocarina  fountain
 
     name = pdf_path.split(".")[-2].replace("/", "")
     result_dir = f"results/{name}"
     os.makedirs(result_dir, exist_ok=True)
     
     images = convert_pdf_to_images(pdf_path)
-    imgs2midi(images[:1], result_dir)
+    midis = imgs2midi(images, result_dir)
+    print(midis)
