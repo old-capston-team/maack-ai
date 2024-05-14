@@ -30,7 +30,7 @@ async def tracking_progress(item: TrackingRequest):
     tmp_folder = create_unique_folder()
     # 요청 받은 audio 파일을 wav 형태로 저장함 (볼 필요 X)
     bytes_to_wav_file(audio_request, tmp_folder) 
-    # 성훈-규혁 서버에서 연주중인 악보와 page에 해당하는 midi 파일을 받아옴 
+    # 성훈-규혁 서버에서 연주중인 악보와 page에 해당하는 midi 파일을 받아옴 (여긴 봐야할 듯)
     download_midi_from_server(sheet_name, page_request, tmp_folder) 
     # wav 파일을 midi로 변환 (볼 필요 X)
     audio2midi(f"{sheet_name}_{page_request}.mid", tmp_folder) 
