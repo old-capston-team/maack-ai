@@ -1,37 +1,100 @@
-import tensorflow as tf
-from magenta.models.onsets_frames_transcription import model as of_model
-import note_seq
-
 import mido
 from fastdtw import fastdtw
 from scipy.spatial.distance import euclidean
 
-def audio2midi(unique_dir, audio_sample_rate=16000):
-    checkpoint_path = tf.train.latest_checkpoint(checkpoint_dir)
+import pretty_midi
+from pydub import AudioSegment
+from madmom.features.onsets import OnsetPeakPickingProcessor, RNNOnsetProcessor
+from madmom.features.notes import RNNPianoNoteProcessor, NotePeakPickingProcessor
+import os
 
-    model = of_model.OnsetsAndFrames()
-    model.initialize()
-    model.load_weights(checkpoint_path)
+def merge_notes(notes, threshold_time=0.1):
+    """
+    Merge close notes into one.
+    :param notes: list of tuples (pitch, onset, duration)
+    :param threshold_time: maximum time difference to merge notes
+    :return: list of merged notes
+    """
+    if not notes:
+        return []
 
-    audio_tensor = tf.io.read_file(f'{unique_dir}/part.wav')
-    audio_samples = note_seq.audio_io.wav_data_to_samples(audio_tensor, sample_rate=audio_sample_rate)
+    # Sort notes by onset time
+    notes.sort(key=lambda x: x[1])
 
-    midi = model.transcribe(audio_samples)
+    merged_notes = []
+    current_note = list(notes[0])
+    
+    for note in notes[1:]:
+        if note[1] - current_note[1] < threshold_time:
+            # Merge the note
+            current_note[0] = note[0]  # Use the latest pitch
+            current_note[2] = max(current_note[2], note[1] + note[2] - current_note[1])  # Update the duration
+        else:
+            # Append the current note and start a new one
+            merged_notes.append(tuple(current_note))
+            current_note = list(note)
 
-    note_seq.sequence_proto_to_midi_file(midi, f'{unique_dir}/audio2midi_output.mid')
+    # Append the last note
+    merged_notes.append(tuple(current_note))
+
+    return merged_notes
+
+def audio_to_midi(audio_path, midi_path, thres=0.9, smooth=0.2):=
+    unique_folder = os.path.dirname(audio_path)
+
+    # Load the audio file and convert to mono
+    audio = AudioSegment.from_file(audio_path).set_channels(1)
+    audio.export(f"{unique_folder}/temp.wav", format="wav")
+    
+    # Use madmom to detect onsets with higher sensitivity
+    onset_processor = RNNOnsetProcessor()
+    onsets = onset_processor(f"{unique_folder}/temp.wav")
+    onset_processor = OnsetPeakPickingProcessor(fps=100, threshold=thres, smooth=smooth
+    )  # Adjusted threshold and smooth
+    onsets = onset_processor(onsets)
+
+    # Use madmom to detect notes with higher sensitivity
+    note_processor = RNNPianoNoteProcessor()
+    notes = note_processor(f"{unique_folder}/temp.wav")
+    note_processor = NotePeakPickingProcessor(threshold=thres, smooth=smooth
+    )  # Adjusted threshold and smooth
+    notes = note_processor(notes)
+
+    # Create a list of (pitch, onset, duration)
+    note_list = [(int(note[1]), note[0], 0.5) for note in notes]  # Default duration set to 0.5 seconds
+
+    # Merge close notes
+    merged_notes = merge_notes(note_list)
+
+    # Create PrettyMIDI object
+    midi = pretty_midi.PrettyMIDI()
+    instrument = pretty_midi.Instrument(program=0)
+
+    # Convert merged notes to MIDI notes
+    for pitch, onset, duration in merged_notes:
+        midi_note = pretty_midi.Note(
+            velocity=100,  # Set a fixed velocity
+            pitch=pitch,
+            start=onset,
+            end=onset + duration  # Use the merged duration
+        )
+        instrument.notes.append(midi_note)
+
+    midi.instruments.append(instrument)
+
+    # Write the MIDI file
+    with open(midi_path, "wb") as output_file:
+        midi.write(output_file)
 
 def tracking(whole_midi_path, part_midi_path):
     whole_midi_notes = extract_notes(read_midi(whole_midi_path))
     part_midi_notes = extract_notes(read_midi(part_midi_path))
 
     distance, path = fastdtw(whole_midi_notes, part_midi_notes, dist=euclidean)
-    print(f"Distance: {distance}")
 
     start_position = path[0][0]
-    print(f"B MIDI starts at position {start_position} in MIDI A")
 
     start_time = calculate_dtw_time(whole_midi_notes, start_position)
-    print(f"B MIDI starts at {start_time} seconds in MIDI A")
 
     return start_position, start_time
 
