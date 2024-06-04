@@ -3,39 +3,39 @@ import os
 import subprocess
 import cv2
 import numpy as np
-from best_fit import fit
-from rectangle import Rectangle
-from note import Note
+from pdf2midi.best_fit import fit
+from pdf2midi.rectangle import Rectangle
+from pdf2midi.note import Note
 from random import randint
-from midiutil.MidiFile3 import MIDIFile
+from midiutil.MidiFile import MIDIFile
 
 # Poppler의 bin 폴더 경로를 지정
 poppler_path = r'C:\Users\USER\poppler-24.02.0\Library\bin'
 os.environ["PATH"] += os.pathsep + poppler_path
 
 staff_files = [
-    "resources/template/staff4.png",
-    "resources/template/staff3.png",
-    "resources/template/staff2.png",
-    "resources/template/staff1.png"]
+    "pdf2midi/resources/template/staff4.png",
+    "pdf2midi/resources/template/staff3.png",
+    "pdf2midi/resources/template/staff2.png",
+    "pdf2midi/resources/template/staff1.png"]
 quarter_files = [
-    "resources/template/quarter.png", 
-    "resources/template/solid-note.png"]
+    "pdf2midi/resources/template/quarter.png", 
+    "pdf2midi/resources/template/solid-note.png"]
 sharp_files = [
-    "resources/template/sharp.png"]
+    "pdf2midi/resources/template/sharp.png"]
 flat_files = [
-    "resources/template/flat-line.png", 
-    "resources/template/flat-space.png" ]
+    "pdf2midi/resources/template/flat-line.png", 
+    "pdf2midi/resources/template/flat-space.png" ]
 half_files = [
-    "resources/template/half-space.png", 
-    "resources/template/half-note-line.png",
-    "resources/template/half-line.png", 
-    "resources/template/half-note-space.png"]
+    "pdf2midi/resources/template/half-space.png", 
+    "pdf2midi/resources/template/half-note-line.png",
+    "pdf2midi/resources/template/half-line.png", 
+    "pdf2midi/resources/template/half-note-space.png"]
 whole_files = [
-    "resources/template/whole-space.png", 
-    "resources/template/whole-note-line.png",
-    "resources/template/whole-line.png", 
-    "resources/template/whole-note-space.png"]
+    "pdf2midi/resources/template/whole-space.png", 
+    "pdf2midi/resources/template/whole-note-line.png",
+    "pdf2midi/resources/template/whole-line.png", 
+    "pdf2midi/resources/template/whole-note-space.png"]
 
 staff_imgs = [cv2.imread(staff_file, 0) for staff_file in staff_files]
 quarter_imgs = [cv2.imread(quarter_file, 0) for quarter_file in quarter_files]
@@ -86,7 +86,7 @@ def open_file(path):
     subprocess.run([cmd, path])
 
 def imgs2midi(images, result_dir):
-    binfile_paths = []
+    note_groups = []
     for img_idx, img in enumerate(images):
         img = img.resize((2479, 3508))
         img = np.array(img)
@@ -155,7 +155,6 @@ def imgs2midi(images, result_dir):
             # r.draw(whole_recs_img, (0, 0, 255), 2)
         # cv2.imwrite(f'{result_dir}/{img_idx}/whole_recs_img.png', whole_recs_img)
 
-        note_groups = []
         for box in staff_boxes:
             staff_sharps = [Note(r, "sharp", box) 
                 for r in sharp_recs if abs(r.middle[1] - box.middle[1]) < box.h*5.0/7.0]
@@ -201,37 +200,36 @@ def imgs2midi(images, result_dir):
         # for note_group in note_groups:
         #     print([ note.note + " " + note.sym for note in note_group])
 
-        midi = MIDIFile(1)
-        
-        track = 0   
-        time = 0
-        channel = 0
-        volume = 100
-        
-        midi.addTrackName(track, time, "Track")
-        midi.addTempo(track, time, 76)
-
-        for note_group in note_groups:
-            duration = None
-            for note in note_group:
-                note_type = note.sym
-                if note_type == "1":
-                    duration = 4
-                elif note_type == "2":
-                    duration = 2
-                elif note_type == "4,8":
-                    duration = 1 if len(note_group) == 1 else 0.5
-                pitch = note.pitch
-                midi.addNote(track,channel,pitch,time,duration,volume)
-                time += duration
-
-        # And write it to disk.
-        binfile = open(f"{result_dir}/{img_idx}.mid", 'wb')
-        midi.writeFile(binfile)
-        binfile.close()
-        binfile_paths.append(f"{result_dir}/{img_idx}.mid")
+    midi = MIDIFile(1)
     
-    return [file_to_bytes(path) for path in binfile_paths]
+    track = 0   
+    time = 0
+    channel = 0
+    volume = 100
+    
+    midi.addTrackName(track, time, "Track")
+    midi.addTempo(track, time, 140)
+
+    for note_group in note_groups:
+        duration = None
+        for note in note_group:
+            note_type = note.sym
+            if note_type == "1":
+                duration = 4
+            elif note_type == "2":
+                duration = 2
+            elif note_type == "4,8":
+                duration = 1 if len(note_group) == 1 else 0.5
+            pitch = note.pitch
+            midi.addNote(track,channel,pitch,time,duration,volume)
+            time += duration
+
+    # And write it to disk.
+    binfile = open(os.path.join(result_dir, "imgs2midi.mid"), 'wb')
+    midi.writeFile(binfile)
+    binfile.close()
+    
+    return file_to_bytes(os.path.join(result_dir, "imgs2midi.mid"))
 
 def file_to_bytes(filename):
     # 파일을 바이너리 모드로 열고 내용을 읽음
@@ -242,6 +240,7 @@ def file_to_bytes(filename):
 if __name__ == "__main__":
     from PIL import Image
     import fitz
+    import pretty_midi
 
     def convert_pdf_to_images(pdf_path, image_format='png', dpi=300):
         document = fitz.open(pdf_path)
@@ -259,7 +258,7 @@ if __name__ == "__main__":
 
         return images
     
-    pdf_path = "../andante.pdf" # ocarina  fountain
+    pdf_path = "../samples/ocarina.pdf" # ocarina  fountain
 
     name = pdf_path.split(".")[-2].replace("/", "")
     result_dir = f"results/{name}"
@@ -267,4 +266,6 @@ if __name__ == "__main__":
     
     images = convert_pdf_to_images(pdf_path)
     midis = imgs2midi(images, result_dir)
-    print(midis)
+    midi_data = pretty_midi.PrettyMIDI(os.path.join(result_dir, "imgs2midi.mid"))
+    print(midi_data)
+    # print(midis)

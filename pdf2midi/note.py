@@ -1,4 +1,4 @@
-from rectangle import Rectangle
+# from pdf2midi.rectangle import Rectangle
 
 note_step = 0.0625
 

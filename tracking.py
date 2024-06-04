@@ -1,7 +1,4 @@
-import mido
 from fastdtw import fastdtw
-from scipy.spatial.distance import euclidean
-
 import pretty_midi
 from pydub import AudioSegment
 from madmom.features.onsets import OnsetPeakPickingProcessor, RNNOnsetProcessor
@@ -39,7 +36,7 @@ def merge_notes(notes, threshold_time=0.1):
 
     return merged_notes
 
-def audio_to_midi(audio_path, midi_path, thres=0.9, smooth=0.2):=
+def audio_to_midi(audio_path, midi_path, thres=0.9, smooth=0.2):
     unique_folder = os.path.dirname(audio_path)
 
     # Load the audio file and convert to mono
@@ -49,19 +46,17 @@ def audio_to_midi(audio_path, midi_path, thres=0.9, smooth=0.2):=
     # Use madmom to detect onsets with higher sensitivity
     onset_processor = RNNOnsetProcessor()
     onsets = onset_processor(f"{unique_folder}/temp.wav")
-    onset_processor = OnsetPeakPickingProcessor(fps=100, threshold=thres, smooth=smooth
-    )  # Adjusted threshold and smooth
+    onset_processor = OnsetPeakPickingProcessor(fps=100, threshold=thres, smooth=smooth)
     onsets = onset_processor(onsets)
 
     # Use madmom to detect notes with higher sensitivity
     note_processor = RNNPianoNoteProcessor()
     notes = note_processor(f"{unique_folder}/temp.wav")
-    note_processor = NotePeakPickingProcessor(threshold=thres, smooth=smooth
-    )  # Adjusted threshold and smooth
+    note_processor = NotePeakPickingProcessor(threshold=thres, smooth=smooth)
     notes = note_processor(notes)
 
     # Create a list of (pitch, onset, duration)
-    note_list = [(int(note[1]), note[0], 0.5) for note in notes]  # Default duration set to 0.5 seconds
+    note_list = [(int(note[1]), note[0], 0.5) for note in notes] 
 
     # Merge close notes
     merged_notes = merge_notes(note_list)
@@ -86,41 +81,90 @@ def audio_to_midi(audio_path, midi_path, thres=0.9, smooth=0.2):=
     with open(midi_path, "wb") as output_file:
         midi.write(output_file)
 
-def tracking(whole_midi_path, part_midi_path):
-    whole_midi_notes = extract_notes(read_midi(whole_midi_path))
-    part_midi_notes = extract_notes(read_midi(part_midi_path))
-
-    distance, path = fastdtw(whole_midi_notes, part_midi_notes, dist=euclidean)
-
-    start_position = path[0][0]
-
-    start_time = calculate_dtw_time(whole_midi_notes, start_position)
-
-    return start_position, start_time
-
-def read_midi(file_path):
-    # MIDI 파일 읽기
-    midi_data = mido.MidiFile(file_path)
-    return midi_data
-
-def extract_notes(midi_file):
+def read_midi(midi_path):
+    """
+    Read a MIDI file and return a list of tuples (pitch, onset, duration).
+    :param midi_path: Path to the MIDI file
+    :return: List of tuples (pitch, onset, duration)
+    """
+    midi_data = pretty_midi.PrettyMIDI(midi_path)
     notes = []
-    for msg in midi_file:
-        if not msg.is_meta and msg.type == 'note_on':
-            note = msg.note  # MIDI 노트 번호
-            velocity = msg.velocity  # 타격 강도
-            time = msg.time  # 이벤트 발생 시간
-            if velocity > 0:
-                notes.append((note, velocity, time))
+    
+    for instrument in midi_data.instruments:
+        for note in instrument.notes:
+            pitch = note.pitch
+            onset = note.start
+            duration = note.end - note.start
+            notes.append((pitch, onset, duration))
+    
     return notes
 
-def calculate_dtw_time(midi_data, position):
-    time = 0
-    count = 0
-    for msg in midi_data:
-        if not msg.is_meta and msg.type == 'note_on' and msg.velocity > 0:
-            if count == position:
-                break
-            count += 1
-            time += msg.time
-    return time
+def extract_pitch_duration(midi_path):
+    """
+    Extract pitch and duration from a MIDI file.
+    :param midi_path: Path to the MIDI file
+    :return: List of tuples (pitch, duration)
+    """
+    midi_data = pretty_midi.PrettyMIDI(midi_path)
+    notes = []
+
+    for instrument in midi_data.instruments:
+        for note in instrument.notes:
+            pitch = note.pitch
+            duration = note.end - note.start
+            notes.append((pitch, duration))
+
+    return notes
+
+def calculate_dtw_distance(seq1, seq2):
+    """
+    Calculate the DTW distance between two sequences.
+    :param seq1: First sequence
+    :param seq2: Second sequence
+    :return: DTW distance
+    """
+    distance, _ = fastdtw(seq1, seq2)
+    return distance
+
+def find_best_matching_section(whole_midi, part_midi, window_size):
+    """
+    Find the section in whole_midi that best matches part_midi.
+    :param whole_midi: List of (pitch, duration) for the whole MIDI
+    :param part_midi: List of (pitch, duration) for the part MIDI
+    :param window_size: Size of the sliding window
+    :return: Best start and end positions in the whole MIDI
+    """
+    best_distance = float('inf')
+    best_start = 0
+    best_end = 0
+
+    for start in range(0, len(whole_midi) - window_size + 1):
+        end = start + window_size
+        window = whole_midi[start:end]
+        distance = calculate_dtw_distance(window, part_midi)
+        if distance < best_distance:
+            best_distance = distance
+            best_start = start
+            best_end = end
+
+    return best_start, best_end, best_distance
+
+def filter_by_start_time(whole_midi, start_time):
+    filtered = []
+    for midi in whole_midi:
+        if midi[1] > start_time + 5:
+            break
+        elif midi[1] >= start_time:
+            filtered.append(midi)
+    return filtered
+
+def tracking(whole_midi_path, part_midi_path, start_time):
+    whole_midi = extract_pitch_duration(whole_midi_path)
+    whole_midi = filter_by_start_time(whole_midi, start_time)
+    part_midi = extract_pitch_duration(part_midi_path)
+
+    window_size = len(part_midi)
+    best_start, best_end, best_distance = find_best_matching_section(whole_midi, part_midi, window_size)
+    play_time = whole_midi[best_start][1]
+
+    return best_start, best_end, play_time
