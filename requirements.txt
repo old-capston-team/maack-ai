@@ -1,6 +1,8 @@
-magenta
 mido
+madmom
 pydub 
+fitz
+pretty_midi
 fastdtw
 opencv-python
 midiutil
@@ -9,3 +11,4 @@ fastapi
 pymupdf
 pillow
 requests
+audio-to-midi==2020.7
