@@ -158,10 +158,8 @@ def filter_by_start_time(whole_midi, start_time):
             filtered.append(midi)
     return filtered
 
-def tracking(whole_midi_path, part_midi_path, start_time):
-    whole_midi = extract_pitch_duration(whole_midi_path)
+def tracking(whole_midi, part_midi, start_time):
     whole_midi = filter_by_start_time(whole_midi, start_time)
-    part_midi = extract_pitch_duration(part_midi_path)
 
     window_size = len(part_midi)
     best_start, best_end, best_distance = find_best_matching_section(whole_midi, part_midi, window_size)

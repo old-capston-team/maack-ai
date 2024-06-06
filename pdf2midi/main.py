@@ -2,6 +2,7 @@ import sys
 import os
 import subprocess
 import cv2
+import base64
 import numpy as np
 from pdf2midi.best_fit import fit
 from pdf2midi.rectangle import Rectangle
@@ -235,7 +236,9 @@ def file_to_bytes(filename):
     # 파일을 바이너리 모드로 열고 내용을 읽음
     with open(filename, 'rb') as file:
         file_bytes = file.read()
-    return file_bytes
+    # 파일 내용을 Base64 문자열로 변환
+    encoded_string = base64.b64encode(file_bytes).decode('utf-8')
+    return encoded_string
 
 if __name__ == "__main__":
     from PIL import Image

@@ -60,10 +60,7 @@ def pdf_bytes_to_images(pdf_bytes):
     pdf_document.close()
     return images 
 
-def extract_item_from_json(json_data, job_dir):
-    filename = json_data.Filename
-    size = json_data.size
-    ID = json_data.ID
+def extract_pdfImg_from_json(json_data, job_dir):
     pdf_url = json_data.url
 
     download_pdf(pdf_url, job_dir)
@@ -94,13 +91,9 @@ def download_midi_from_server(sheet_name, save_dir):
         return False
 
 class PDFJSONRequest(BaseModel):
-    Filename: str
     url: str
-    size: int
-    ID: int
     
 class TrackingInitRequest(BaseModel):
-    page: int
     sheet_name: str
 
 class TrackingAudioRequest(BaseModel):
