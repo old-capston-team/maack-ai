@@ -1,10 +1,10 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse
 import uvicorn
 
 from pdf2midi.main import imgs2midi
 from server_utils import *
-from tracking import audio_to_midi, tracking, extract_pitch_duration
+from tracking import *
 
 import shutil
 
@@ -45,35 +45,37 @@ async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         tmp_folder = create_unique_folder()
-        current_progress_time = 0
+        current_progress_time, offset = 0, 0
 
         meta_data = await websocket.receive_json()
         sheetMusicId = meta_data['sheet_music_id']
 
         tracking_flag = download_midi_from_server(tmp_folder, sheetMusicId=sheetMusicId)
-        await manager.send_message({"tracking_flag":tracking_flag}, websocket)
+        await manager.send_message(str({"tracking_flag":tracking_flag}), websocket)
 
-        whole_midi = extract_pitch_duration(os.path.join(tmp_folder, "target.mid"))
+        whole_midi = read_midi(os.path.join(tmp_folder, "target.mid"))
         while True:
-            tracking_start_time = time.time()
             data = await websocket.receive_json()
-            audio_request = data['audio']
+            is_finished = data['is_finished']
+            if not is_finished:
+                audio_request = data['recording']
 
-            bytes_to_wav_file(audio_request, tmp_folder)
-            audio_to_midi(tmp_folder)
-            part_midi = extract_pitch_duration(os.path.join(tmp_folder, "audio2midi_output.mid"))
-            best_start, best_end, play_time = tracking(whole_midi, part_midi, current_progress_time)
-            os.remove(os.path.join(tmp_folder, "audio2midi_output.mid"))
-            
-            response = {
-                "best_start": best_start,
-                "best_end": best_end
-            }
-            current_progress_time = (time.time() - tracking_start_time) + play_time
-            await manager.send_message(response, websocket)
+                bytes_to_wav_file(audio_request, tmp_folder)
+                audio_to_midi(tmp_folder)
+                part_midi = read_midi(os.path.join(tmp_folder, "audio2midi_output.mid"))
+                best_start, best_end, play_time = tracking(whole_midi, part_midi, current_progress_time)
+                
+                response = {
+                    "best_start": best_start + offset,
+                    "best_end": best_end + offset
+                }
+                offset += best_end
+                current_progress_time = play_time
+                await manager.send_message(str(response), websocket)
+            else: break
     except WebSocketDisconnect:
         manager.disconnect(websocket)
-        shutil.rmtree(tmp_folder)
+    shutil.rmtree(tmp_folder)
 
 if __name__ == "__main__":
     uvicorn.run(app, host='0.0.0.0', port=80)

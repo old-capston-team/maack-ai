@@ -36,8 +36,9 @@ def merge_notes(notes, threshold_time=0.1):
 
     return merged_notes
 
-def audio_to_midi(audio_path, midi_path, thres=0.9, smooth=0.2):
-    unique_folder = os.path.dirname(audio_path)
+def audio_to_midi(unique_folder, thres=0.9, smooth=0.2):
+    audio_path = os.path.join(unique_folder, "part.m4a")
+    midi_path = os.path.join(unique_folder, "audio2midi_output.mid")
 
     # Load the audio file and convert to mono
     audio = AudioSegment.from_file(audio_path).set_channels(1)
@@ -81,7 +82,7 @@ def audio_to_midi(audio_path, midi_path, thres=0.9, smooth=0.2):
     with open(midi_path, "wb") as output_file:
         midi.write(output_file)
 
-def extract_pitch_duration(midi_path):
+def read_midi(midi_path):
     """
     Extract pitch and duration from a MIDI file.
     :param midi_path: Path to the MIDI file
@@ -94,7 +95,7 @@ def extract_pitch_duration(midi_path):
         for note in instrument.notes:
             pitch = note.pitch
             duration = note.end - note.start
-            notes.append((pitch, duration))
+            notes.append((pitch, note.start, duration))
 
     return notes
 

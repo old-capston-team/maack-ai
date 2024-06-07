@@ -8,6 +8,7 @@ import fitz
 from music21 import converter
 from PIL import Image
 
+import json
 import os
 import time
 import uuid
@@ -78,15 +79,18 @@ def file_to_bytes(filename):
     return encoded_string
 
 def bytes_to_wav_file(file_bytes, save_dir):
+    decoded_bytes = base64.b64decode(file_bytes)
     with open(os.path.join(save_dir, "part.m4a"), 'wb') as file:
-        file.write(file_bytes)
+        file.write(decoded_bytes)
 
 def download_midi_from_server(save_dir, **kwargs):
     # 서버에서 파일을 받아옴
     if "url" not in kwargs:
         url = f"http://3.36.180.35:8080/api/v1/sheet-musics/midi/{kwargs['sheetMusicId']}"
-        response = requests.get(url, verify=False)
-        response = requests.get(response.content['url'], verify=False)
+        response = requests.get(url, verify=False) 
+        response_json = response.json()
+        midi_url = response_json.get('url')
+        response = requests.get(midi_url, verify=False)
     else:
         url = kwargs["url"]
         response = requests.get(url, verify=False)
