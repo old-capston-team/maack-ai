@@ -1,5 +1,5 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
 import uvicorn
 
 from pdf2midi.main import imgs2midi
@@ -23,11 +23,13 @@ async def favicon():
 @app.post("/midi_to_xml")
 async def midi_to_xml(item: MTXJSONRequest):
     tmp_folder = create_unique_folder()
-    download_midi_from_server("", tmp_folder, item.url)
+    download_midi_from_server(tmp_folder, url=item.url)
     score = converter.parse(os.path.join(tmp_folder, "target.mid"))
     output_path = os.path.join(tmp_folder, 'output.musicxml')
     score.write('musicxml', fp=output_path)
-    return FileResponse(output_path, media_type='application/xml', filename='output.musicxml')
+    encoded_string = file_to_bytes(output_path)
+    shutil.rmtree(tmp_folder)
+    return JSONResponse(content={"musicxml": encoded_string})
 
 # post 사용, end-point로 pdf_to_midi
 @app.post("/pdf_to_midi")
