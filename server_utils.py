@@ -82,12 +82,14 @@ def bytes_to_wav_file(file_bytes, save_dir):
         file.write(file_bytes)
 
 def download_midi_from_server(save_dir, **kwargs):
-    url = kwargs["url"]
-
     # 서버에서 파일을 받아옴
-    if url is None:
-        url = f"http://3.36.180.35:8080/api/v1/sheet-musics/midi/{kwargs['midiFileId']}"
-    response = requests.get(url, verify=False)
+    if "url" not in kwargs:
+        url = f"http://3.36.180.35:8080/api/v1/sheet-musics/midi/{kwargs['sheetMusicId']}"
+        response = requests.get(url, verify=False)
+        response = requests.get(response.content['url'], verify=False)
+    else:
+        url = kwargs["url"]
+        response = requests.get(url, verify=False)
     
     # 응답을 파일로 저장
     if response.status_code == 200:

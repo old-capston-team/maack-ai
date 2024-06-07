@@ -27,22 +27,16 @@ async def midi_to_xml(item: MTXJSONRequest):
     score = converter.parse(os.path.join(tmp_folder, "target.mid"))
     output_path = os.path.join(tmp_folder, 'output.musicxml')
     score.write('musicxml', fp=output_path)
-    encoded_string = file_to_bytes(output_path)
+    response = {"musicxml":file_to_bytes(output_path)}
     shutil.rmtree(tmp_folder)
-    return JSONResponse(content={"musicxml": encoded_string})
+    return response
 
-# post 사용, end-point로 pdf_to_midi
 @app.post("/pdf_to_midi")
-# pdf를 받으면 변환된 midi를 response
 async def pdf_to_midi(item: PDFJSONRequest):
     tmp_folder = create_unique_folder()
-    # 중복이 발생하지 않는 폴더 생성 (볼 필요 X)
     pdf_images = extract_pdfImg_from_json(item, tmp_folder)
-     # 이미지를 이용해 midi 생성 (볼 필요 X)
     midi_bytes = imgs2midi(pdf_images, tmp_folder)
-    # response 생성
     response = {"midi": midi_bytes}
-    # 폴더를 재귀적으로 삭제
     shutil.rmtree(tmp_folder)
     return response
 
@@ -54,9 +48,9 @@ async def websocket_endpoint(websocket: WebSocket):
         current_progress_time = 0
 
         meta_data = await websocket.receive_json()
-        sheet_name = meta_data['sheet_name']
+        sheetMusicId = meta_data['sheet_music_id']
 
-        tracking_flag = download_midi_from_server(sheet_name, tmp_folder)
+        tracking_flag = download_midi_from_server(tmp_folder, sheetMusicId=sheetMusicId)
         await manager.send_message({"tracking_flag":tracking_flag}, websocket)
 
         whole_midi = extract_pitch_duration(os.path.join(tmp_folder, "target.mid"))
