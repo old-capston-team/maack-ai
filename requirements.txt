@@ -1,6 +1,7 @@
 mido
 madmom
 pydub 
+music21
 fitz
 pretty_midi
 fastdtw

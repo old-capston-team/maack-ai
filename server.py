@@ -20,6 +20,15 @@ async def root():
 async def favicon():
     return FileResponse("icon/favicon.ico")
 
+@app.post("/midi_to_xml")
+async def midi_to_xml(item: MTXJSONRequest):
+    tmp_folder = create_unique_folder()
+    download_midi_from_server("", tmp_folder, item.url)
+    score = converter.parse(os.path.join(tmp_folder, "target.mid"))
+    output_path = os.path.join(tmp_folder, 'output.musicxml')
+    score.write('musicxml', fp=output_path)
+    return FileResponse(output_path, media_type='application/xml', filename='output.musicxml')
+
 # post 사용, end-point로 pdf_to_midi
 @app.post("/pdf_to_midi")
 # pdf를 받으면 변환된 midi를 response
@@ -48,8 +57,7 @@ async def websocket_endpoint(websocket: WebSocket):
         tracking_flag = download_midi_from_server(sheet_name, tmp_folder)
         await manager.send_message({"tracking_flag":tracking_flag}, websocket)
 
-        whole_midi = extract_pitch_duration(os.path.join(tmp_folder, f"{sheet_name}.mid"))
-
+        whole_midi = extract_pitch_duration(os.path.join(tmp_folder, "target.mid"))
         while True:
             tracking_start_time = time.time()
             data = await websocket.receive_json()
@@ -65,7 +73,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "best_start": best_start,
                 "best_end": best_end
             }
-            current_progress_time += (time.time() - tracking_start_time) + play_time
+            current_progress_time = (time.time() - tracking_start_time) + play_time
             await manager.send_message(response, websocket)
     except WebSocketDisconnect:
         manager.disconnect(websocket)

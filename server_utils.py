@@ -1,9 +1,11 @@
 import io
 import requests
+import base64
 from pydantic import BaseModel
 from fastapi import WebSocket
 
 import fitz
+from music21 import converter
 from PIL import Image
 
 import os
@@ -18,7 +20,7 @@ def create_unique_folder():
 
 def download_pdf(url, job_dir):
     try:
-        response = requests.get(url, stream=True)
+        response = requests.get(url, stream=True, verify=False)
         response.raise_for_status()  # Check if the request was successful
         
         with open(os.path.join(job_dir, "convert_it.pdf"), 'wb') as file:
@@ -71,20 +73,23 @@ def file_to_bytes(filename):
     # 파일을 바이너리 모드로 열고 내용을 읽음
     with open(filename, 'rb') as file:
         file_bytes = file.read()
-    return file_bytes
+    # 파일 내용을 Base64 문자열로 변환
+    encoded_string = base64.b64encode(file_bytes).decode('utf-8')
+    return encoded_string
 
 def bytes_to_wav_file(file_bytes, save_dir):
     with open(os.path.join(save_dir, "part.m4a"), 'wb') as file:
         file.write(file_bytes)
 
-def download_midi_from_server(sheet_name, save_dir):
+def download_midi_from_server(midiFileId, save_dir, url=None):
     # 서버에서 파일을 받아옴
-    url = f"http://0.0.0.0:30080/{sheet_name}"
+    if url is None:
+        url = f"http://3.36.180.35:8080/api/v1/sheet-musics/midi/{midiFileId}"
     response = requests.get(url)
     
     # 응답을 파일로 저장
     if response.status_code == 200:
-        with open(os.path.join(save_dir, f"{sheet_name}.mid"), 'wb') as file:
+        with open(os.path.join(save_dir, "target.mid"), 'wb') as file:
             file.write(response.content)
         return True
     else:
@@ -92,12 +97,9 @@ def download_midi_from_server(sheet_name, save_dir):
 
 class PDFJSONRequest(BaseModel):
     url: str
-    
-class TrackingInitRequest(BaseModel):
-    sheet_name: str
 
-class TrackingAudioRequest(BaseModel):
-    audio: bytes
+class MTXJSONRequest(BaseModel):
+    url: str
 
 class ConnectionManager:
     def __init__(self):

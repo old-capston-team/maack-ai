@@ -81,24 +81,6 @@ def audio_to_midi(audio_path, midi_path, thres=0.9, smooth=0.2):
     with open(midi_path, "wb") as output_file:
         midi.write(output_file)
 
-def read_midi(midi_path):
-    """
-    Read a MIDI file and return a list of tuples (pitch, onset, duration).
-    :param midi_path: Path to the MIDI file
-    :return: List of tuples (pitch, onset, duration)
-    """
-    midi_data = pretty_midi.PrettyMIDI(midi_path)
-    notes = []
-    
-    for instrument in midi_data.instruments:
-        for note in instrument.notes:
-            pitch = note.pitch
-            onset = note.start
-            duration = note.end - note.start
-            notes.append((pitch, onset, duration))
-    
-    return notes
-
 def extract_pitch_duration(midi_path):
     """
     Extract pitch and duration from a MIDI file.
@@ -163,6 +145,6 @@ def tracking(whole_midi, part_midi, start_time):
 
     window_size = len(part_midi)
     best_start, best_end, best_distance = find_best_matching_section(whole_midi, part_midi, window_size)
-    play_time = whole_midi[best_start][1]
+    play_time = whole_midi[best_end][1]
 
     return best_start, best_end, play_time
